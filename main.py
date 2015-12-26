@@ -16,7 +16,8 @@ class Stats():
 
 
     def upload_catalog(self, board):
-        now = datetime.datetime.now()
+        # utcnow() returns local time
+        now = datetime.datetime.utcnow()
         page = requests.get(self.catalog_url % (board))
 
         if page.status_code != 200:
@@ -30,10 +31,30 @@ class Stats():
             # u'cyclical', u'locked', u'name', u'tn_w', u'h', u'ext', u'resto', u'w', u'time', u'com']
 
             for line in page['threads']:
-                print(line)
                 line['timestamp'] = now
-                result = self.es.index(index="8chan", doc_type='catalog', body=line)
-                print(result)
+                line['board'] = board
+    
+                exists =  self.es.search(index="8chan", doc_type='catalog', size=1, q='_type:catalog AND board:pol AND id:%s' % (line['id']))
+
+                print(exists['hits']['hits'])
+
+                if exists['hits']['hits']:
+                    print(exists)
+                    hits = exists['hits']['hits']
+
+                    # fucking stupid
+                    if len(hits):
+                        old_id = hits[0]['_id']
+                        result = self.es.index(index="8chan", id=old_id, doc_type='catalog', body=line)
+                        print(result)
+
+                    else:
+                        continue
+
+
+                else:
+                    result = self.es.index(index="8chan", doc_type='catalog', body=line)
+                    print(result)
 
 
 
